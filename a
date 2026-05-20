@@ -1,25 +1,69 @@
-#!/bin/bash
+bash -c "
+# 1. Update the user configuration with fixed, modern Hyprland syntax
+sudo tee /home/lirn/.config/caelestia/hypr-user.conf << 'HYPRUSER'
+monitor=eDP-1,highres,auto,2
 
-# --- ALTARE DISCORD ANNOUNCEMENT SCRIPTS ---
-# This script stores the official, finalized announcements for Altare.
-# Run a function to print the specific message you need to copy.
-
-announce_launch() {
-    cat << 'EOF'
-We are excited to officially announce that Altare 11 will launch on 22 March at 16:00.
-
-Due to the high stakes of this release, we’ve hired contractors to build a perimeter wall around our Riverpark Tower headquarters, and hired 24/7 armed bodyguards at the location.
-EOF
+input {
+    kb_layout = us
+    natural_scroll = true
+    touchpad {
+        natural_scroll = true
+        tap-to-click = true
+        tap-and-drag = true
+        drag_lock = true
+        disable_while_typing = true
+    }
 }
 
-announce_delay() {
-    cat << 'EOF'
-Altare 11 will be delayed until tomorrow. We apologize for the delay, but building things is hard. 
-
-We will provide a specific time for tomorrow as soon as possible.
-EOF
+gestures {
+    workspace_swipe = true
+    workspace_swipe_distance = 300
+    workspace_swipe_invert = true
+    workspace_swipe_cancel_ratio = 0.5
+    workspace_swipe_create_new = true
 }
 
-# Usage instructions if run directly
-echo "Altare Announcement Script Loaded."
-echo "Usage: Run 'announce_launch' or 'announce_delay' to view the text."
+misc {
+    vrr = 0
+    disable_hyprland_logo = true
+}
+
+$mod = SUPER
+
+bind=$mod,Q,killactive
+bind=$mod,F,fullscreen,0
+bind=$mod,M,fullscreen,1
+bind=$mod,Tab,cyclenext
+bind=$mod SHIFT,Tab,cyclenext,prev
+bind=$mod,Left,workspace,e-1
+bind=$mod,Right,workspace,e+1
+bind=$mod,Space,exec,rofi -show drun
+bind=$mod,Return,exec,foot
+bind=,XF86MonBrightnessUp,exec,brightnessctl set +10%
+bind=,XF86MonBrightnessDown,exec,brightnessctl set 10%-
+bind=,XF86KbdBrightnessUp,exec,brightnessctl -d smc::kbd_backlight set +10%
+bind=,XF86KbdBrightnessDown,exec,brightnessctl -d smc::kbd_backlight set 10%-
+bind=,XF86AudioRaiseVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bind=,XF86AudioLowerVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bind=,XF86AudioMute,exec,wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+HYPRUSER
+
+# 2. Correct ownership of the updated config file
+chown lirn:users /home/lirn/.config/caelestia/hypr-user.conf
+
+# 3. Tell greetd to execute the dedicated Caelestia startup script
+sudo tee /etc/greetd/config.toml << 'GREETD'
+[terminal]
+vt = 1
+[default_session]
+command = \"tuigreet --time --remember --cmd start-hyprland\"
+user = \"greeter\"
+GREETD
+
+# 4. Refresh systemd unit definitions and clear past failure flags
+sudo systemctl daemon-reload
+sudo systemctl reset-failed greetd.service
+
+# 5. Bring up the new login screen environment
+sudo systemctl restart greetd.service
+"
