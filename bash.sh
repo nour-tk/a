@@ -1,4 +1,4 @@
-cat > ~/install.sh << 'INSTALL'
+modprobe wl && sleep 3 && iwctl --passphrase "salahbedairr" station wlan0 connect "0" && sleep 3 && cat > ~/install.sh << 'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -13,13 +13,8 @@ TARGET_LOCALE="en_US.UTF-8"
 info() { printf "\n\e[1;34m==> %s\e[0m\n" "$*"; }
 die()  { printf "\nError: %s\n" "$*" >&2; exit 1; }
 
-info "Connecting to WiFi"
-WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
-echo "WiFi device: $WIFI_DEV"
-iwctl --passphrase "salahbedairr" station "$WIFI_DEV" connect "0" || true
-sleep 5
 ping -c 1 archlinux.org >/dev/null 2>&1 || die "No internet"
-echo "Connected!"
+echo "Online!"
 
 timedatectl set-ntp true
 
@@ -70,7 +65,6 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 echo "$TARGET_USERNAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-installer
 chmod 440 /etc/sudoers.d/99-installer
 
-# Apple keyboard
 mkdir -p /etc/modprobe.d
 cat > /etc/modprobe.d/hid_apple.conf << APPLE
 options hid_apple fnmode=1
@@ -78,13 +72,11 @@ options hid_apple iso_layout=0
 options hid_apple swap_opt_cmd=0
 APPLE
 
-# Keyboard backlight on boot
 mkdir -p /etc/tmpfiles.d
 cat > /etc/tmpfiles.d/kbd-backlight.conf << KBD
 w /sys/class/leds/smc::kbd_backlight/brightness - - - - 100
 KBD
 
-# Trackpad
 mkdir -p /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/30-touchpad.conf << TRACKPAD
 Section "InputClass"
@@ -117,7 +109,6 @@ grub-mkconfig -o /boot/grub/grub.cfg
 
 systemctl enable NetworkManager bluetooth thermald power-profiles-daemon greetd
 
-# Fan control
 mkdir -p /etc/modules-load.d
 printf 'applesmc\ncoretemp\n' > /etc/modules-load.d/macbook-thermal.conf
 cat > /etc/mbpfan.conf << MBPFAN
@@ -128,7 +119,6 @@ max_temp = 86
 polling_interval = 1
 MBPFAN
 
-# Write setup.sh for user to run after first boot
 cat > /home/$TARGET_USERNAME/setup.sh << 'SETUP'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -179,7 +169,7 @@ ln -s "$repo/btop" "$cfg/btop"
 ln -s "$repo/starship.toml" "$cfg/starship.toml"
 chmod u+x "$cfg/hypr/scripts/wsaction.fish"
 
-info "Writing macOS-like Hyprland config"
+info "Writing macOS-like config"
 mkdir -p ~/.config/caelestia ~/Pictures/Wallpapers
 cat > ~/.config/caelestia/hypr-vars.conf << HYPRVARS
 \$workspaceSwipeFingers = 3
@@ -219,7 +209,6 @@ misc {
 
 \$mod = SUPER
 
-# macOS-like shortcuts
 bind=\$mod,Q,killactive
 bind=\$mod,F,fullscreen,0
 bind=\$mod,M,fullscreen,1
@@ -230,16 +219,10 @@ bind=\$mod,Right,workspace,e+1
 bind=\$mod,Up,overview:toggle
 bind=\$mod,Space,exec,rofi -show drun
 bind=\$mod,Return,exec,foot
-
-# Screen brightness
 bind=,XF86MonBrightnessUp,exec,brightnessctl set +10%
 bind=,XF86MonBrightnessDown,exec,brightnessctl set 10%-
-
-# Keyboard backlight
 bind=,XF86KbdBrightnessUp,exec,brightnessctl -d smc::kbd_backlight set +10%
 bind=,XF86KbdBrightnessDown,exec,brightnessctl -d smc::kbd_backlight set 10%-
-
-# Volume
 bind=,XF86AudioRaiseVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
 bind=,XF86AudioLowerVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bind=,XF86AudioMute,exec,wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
@@ -277,7 +260,7 @@ xdg-user-dirs-update || true
 info "Enabling fan control"
 sudo systemctl enable --now mbpfan
 
-info "Setting keyboard backlight to 50%"
+info "Setting keyboard backlight"
 sudo brightnessctl -d smc::kbd_backlight set 50% || true
 
 info "All done! Run: Hyprland"
