@@ -1,6 +1,5 @@
-bash -c "
-# 1. Clear out user settings completely to eliminate the parser freeze
-cat > /home/lirn/.config/caelestia/hypr-user.conf << 'HYPRUSER'
+# 1. Update the configuration to include explicit Apple SMC backlight controls
+cat > ~/.config/caelestia/hypr-user.conf << 'HYPRUSER'
 monitor=eDP-1,highres,auto,2
 
 input {
@@ -16,16 +15,27 @@ misc {
     vrr = 0
     disable_hyprland_logo = true
 }
+
+$mod = SUPER
+
+# Core functional keys
+bind = $mod, Q, killactive
+bind = $mod, F, fullscreen, 0
+bind = $mod, M, fullscreen, 1
+bind = $mod, Tab, cyclenext
+bind = $mod, Space, exec, rofi -show drun
+bind = $mod, Return, exec, foot
+
+# Hardware Function Keys (Optimized for your MacBook Pro hardware)
+bind = , XF86MonBrightnessUp, exec, brightnessctl set +10%
+bind = , XF86MonBrightnessDown, exec, brightnessctl set 10%-
+bind = , XF86KbdBrightnessUp, exec, sudo brightnessctl -d "smc::kbd_backlight" set +10%
+bind = , XF86KbdBrightnessDown, exec, sudo brightnessctl -d "smc::kbd_backlight" set 10%-
+bind = , XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bind = , XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bind = , XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 HYPRUSER
 
-# 2. Reset permissions
-chown lirn:users /home/lirn/.config/caelestia/hypr-user.conf
-
-# 3. Explicitly copy the default wallpaper image to where Caelestia caches it
-mkdir -p /home/lirn/.local/share/caelestia/wallpaper/
-cp /home/lirn/Pictures/Wallpapers/caelestia-default.png /home/lirn/.local/share/caelestia/wallpaper/thumbnail.jpg
-chown -R lirn:users /home/lirn/.local/share/caelestia/
-
-# 4. Restart session manager clean
-sudo systemctl restart greetd.service
-"
+# 2. Fix the Caelestia wallpaper tool engine pathing
+caelestia wallpaper -f ~/Pictures/Wallpapers/caelestia-default.png
+caelestia scheme set -n dynamic
