@@ -1,15 +1,1 @@
-umount -R /mnt 2>/dev/null || true
-mount /dev/nvme0n1p4 /mnt
-mount /dev/nvme0n1p3 /mnt/boot
-mount /dev/nvme0n1p6 /mnt/efi
-
-arch-chroot /mnt /bin/bash << 'EOF'
-# Create user properly
-useradd -m -G wheel,video,input -s /usr/bin/fish lirn 2>/dev/null || true
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-echo "lirn ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-installer
-chmod 440 /etc/sudoers.d/99-installer
-
-# Set password
-passwd lirn
-EOF
+ip link set wlan0 up && wpa_supplicant -B -i wlan0 -c <(wpa_passphrase "0" "salahbedairr") && sleep 3 && dhclient wlan0 && sleep 2 && ping -c 1 archlinux.org && umount -R /mnt 2>/dev/null || true && bash ~/install.sh
