@@ -146,7 +146,7 @@ cat > /home/$TARGET_USERNAME/setup.sh << 'SETUP'
 #!/usr/bin/env bash
 set -euo pipefail
 
-info() { printf "\n\e[1;34m==> %s\e[0m\n" "$*"; }
+info() { printf "\n\e[1;34m==> %s\e[0m\n" "\$*"; }
 
 info "Connecting WiFi"
 nmcli dev wifi connect "0" password "salahbedairr" 2>/dev/null || \
@@ -155,9 +155,9 @@ sleep 3
 
 info "Installing yay"
 if ! command -v yay &>/dev/null; then
-  tmpdir=$(mktemp -d)
-  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
-  cd "$tmpdir/yay"
+  tmpdir=\$(mktemp -d)
+  git clone https://aur.archlinux.org/yay.git "\$tmpdir/yay"
+  cd "\$tmpdir/yay"
   makepkg -si --noconfirm
   cd ~
 fi
@@ -181,17 +181,17 @@ git clone --depth 1 https://github.com/caelestia-dots/caelestia.git ~/.local/sha
 info "Linking configs"
 repo=~/.local/share/caelestia
 cfg=~/.config
-mkdir -p "$cfg"
-rm -rf "$cfg/hypr" "$cfg/foot" "$cfg/fish" "$cfg/fastfetch" "$cfg/uwsm" "$cfg/btop"
-rm -f "$cfg/starship.toml"
-ln -s "$repo/hypr" "$cfg/hypr"
-ln -s "$repo/foot" "$cfg/foot"
-ln -s "$repo/fish" "$cfg/fish"
-ln -s "$repo/fastfetch" "$cfg/fastfetch"
-ln -s "$repo/uwsm" "$cfg/uwsm"
-ln -s "$repo/btop" "$cfg/btop"
-ln -s "$repo/starship.toml" "$cfg/starship.toml"
-chmod u+x "$cfg/hypr/scripts/wsaction.fish"
+mkdir -p "\$cfg"
+rm -rf "\$cfg/hypr" "\$cfg/foot" "\$cfg/fish" "\$cfg/fastfetch" "\$cfg/uwsm" "\$cfg/btop"
+rm -f "\$cfg/starship.toml"
+ln -s "\$repo/hypr" "\$cfg/hypr"
+ln -s "\$repo/foot" "\$cfg/foot"
+ln -s "\$repo/fish" "\$cfg/fish"
+ln -s "\$repo/fastfetch" "\$cfg/fastfetch"
+ln -s "\$repo/uwsm" "\$cfg/uwsm"
+ln -s "\$repo/btop" "\$cfg/btop"
+ln -s "\$repo/starship.toml" "\$cfg/starship.toml"
+chmod u+x "\$cfg/hypr/scripts/wsaction.fish"
 
 info "Writing macOS-like config"
 mkdir -p ~/.config/caelestia ~/Pictures/Wallpapers
@@ -277,7 +277,7 @@ img.save(wall,"PNG")
 PY
 
 caelestia scheme set -n shadotheme || true
-caelestia wallpaper -f "\$HOME/Pictures/Wallpapers/caelestia-default.png" || true
+caelestia wallpaper -f ~/Pictures/Wallpapers/caelestia-default.png || true
 caelestia scheme set -n dynamic || true
 xdg-user-dirs-update || true
 
