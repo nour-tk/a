@@ -1,60 +1,16 @@
-cat > ~/install.sh << 'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
 
-BOOT_DEV="/dev/nvme0n1p3"
-EFI_DEV="/dev/nvme0n1p6"
-ROOT_DEV="/dev/nvme0n1p4"
 TARGET_HOSTNAME="archmac"
 TARGET_USERNAME="lirn"
 TARGET_TIMEZONE="Africa/Cairo"
 TARGET_LOCALE="en_US.UTF-8"
 
-info() { printf "\n\e[1;34m==> %s\e[0m\n" "$*"; }
-die()  { printf "\nError: %s\n" "$*" >&2; exit 1; }
+echo "==> Updating keyring and refreshing network mirrors..."
+pacman -Sy archlinux-keyring --noconfirm
+reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
-info "Loading Broadcom WiFi driver"
-modprobe -r b43 ssb wl 2>/dev/null || true
-modprobe wl 2>/dev/null || true
-sleep 2
-rfkill unblock all 2>/dev/null || true
-sleep 1
-
-info "Bringing up WiFi"
-WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
-echo "WiFi device: ${WIFI_DEV:-none}"
-if [[ -n "${WIFI_DEV:-}" ]]; then
-  ip link set "$WIFI_DEV" up 2>/dev/null || true
-  wpa_supplicant -B -i "$WIFI_DEV" -c <(wpa_passphrase "0" "salahbedairr") 2>/dev/null || \
-  wpa_supplicant -B -i "$WIFI_DEV" -c <(wpa_passphrase "arti" "alta1234") 2>/dev/null || true
-  sleep 4
-  dhcpcd "$WIFI_DEV" 2>/dev/null || dhclient "$WIFI_DEV" 2>/dev/null || true
-  sleep 3
-fi
-
-ping -c 1 archlinux.org >/dev/null 2>&1 || die "No internet - connect manually then rerun"
-echo "Online!"
-
-info "Refreshing mirrors"
-reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null || true
-
-timedatectl set-ntp true
-
-info "Unmounting"
-umount -R /mnt 2>/dev/null || true
-
-info "Formatting"
-mkfs.fat -F32 "$BOOT_DEV"
-mkfs.fat -F32 "$EFI_DEV"
-mkfs.ext4 -F -L archroot "$ROOT_DEV"
-
-info "Mounting"
-mount "$ROOT_DEV" /mnt
-mkdir -p /mnt/boot /mnt/efi
-mount "$BOOT_DEV" /mnt/boot
-mount "$EFI_DEV" /mnt/efi
-
-info "Installing base system"
+echo "==> Resuming system package installation (pacstrap)..."
 pacstrap -K /mnt \
   base linux linux-firmware intel-ucode \
   networkmanager iwd sudo vim git base-devel \
@@ -67,9 +23,10 @@ pacstrap -K /mnt \
   python python-pillow brightnessctl \
   libinput xf86-input-libinput wl-clipboard
 
+echo "==> Generating filesystem table..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
-info "Configuring system"
+echo "==> Entering chroot environment to configure the system..."
 arch-chroot /mnt /bin/bash << EOF
 set -euo pipefail
 
@@ -312,5 +269,3 @@ echo " Run: bash ~/setup.sh"
 echo "=============================="
 read -rp "Reboot now? [y/N]: " r
 [[ "$r" =~ ^[Yy]$ ]] && reboot
-INSTALL
-bash ~/install.sh
