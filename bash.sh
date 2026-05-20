@@ -1,25 +1,29 @@
+cat > ~/finish.sh << 'FINISH'
+#!/usr/bin/env bash
+set -euo pipefail
+
 umount -R /mnt 2>/dev/null || true
 mount /dev/nvme0n1p4 /mnt
 mount /dev/nvme0n1p3 /mnt/boot
 mount /dev/nvme0n1p6 /mnt/efi
 
 arch-chroot /mnt /bin/bash << 'CHROOT'
-# Install yay using bash explicitly
+
 su - lirn -s /bin/bash -c '
 set -e
-tmpdir=$(mktemp -d)
-git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
-cd "$tmpdir/yay"
-makepkg -si --noconfirm
+if ! command -v yay &>/dev/null; then
+  tmpdir=$(mktemp -d)
+  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
+  cd "$tmpdir/yay"
+  makepkg -si --noconfirm
+fi
 '
 
-# Install AUR packages
 su - lirn -s /bin/bash -c '
 yay -S --needed --noconfirm --answerclean None --answerdiff None --answeredit None \
   tuigreet caelestia-shell caelestia-cli google-chrome mbpfan
 '
 
-# Configure greetd
 mkdir -p /etc/greetd
 cat > /etc/greetd/config.toml << 'EOF'
 [terminal]
@@ -29,7 +33,6 @@ command = "tuigreet --time --remember --cmd Hyprland"
 user = "greeter"
 EOF
 
-# Mac fan
 mkdir -p /etc/modules-load.d
 printf 'applesmc\ncoretemp\n' > /etc/modules-load.d/macbook-thermal.conf
 cat > /etc/mbpfan.conf << 'EOF'
@@ -41,7 +44,6 @@ polling_interval = 1
 EOF
 systemctl enable mbpfan
 
-# Clone and link caelestia
 su - lirn -s /bin/bash -c '
 set -e
 rm -rf ~/.local/share/caelestia
@@ -59,7 +61,6 @@ ln -s "$repo/uwsm" "$cfg/uwsm"
 ln -s "$repo/btop" "$cfg/btop"
 ln -s "$repo/starship.toml" "$cfg/starship.toml"
 chmod u+x "$cfg/hypr/scripts/wsaction.fish"
-
 mkdir -p ~/.config/caelestia ~/Pictures/Wallpapers
 cat > ~/.config/caelestia/hypr-vars.conf << EOF
 \$workspaceSwipeFingers = 3
@@ -84,7 +85,6 @@ bind=,XF86MonBrightnessDown,exec,brightnessctl set 10%-
 EOF
 '
 
-# Wallpaper
 su - lirn -s /bin/bash -c '
 python - << PY
 from pathlib import Path
@@ -114,10 +114,14 @@ caelestia scheme set -n dynamic || true
 '
 
 chsh -s /usr/bin/fish lirn
-
-echo "Set lirn password:"
 passwd lirn
+
 CHROOT
 
 umount -R /mnt
+echo ""
 echo "Done! Reboot and hold Option key."
+read -rp "Reboot now? [y/N]: " r
+[[ "$r" =~ ^[Yy]$ ]] && reboot
+FINISH
+bash ~/finish.sh
