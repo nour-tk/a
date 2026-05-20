@@ -1,9 +1,25 @@
-python3 - << 'PY'
-from pathlib import Path
-from PIL import Image
-wall = Path.home() / "Pictures/Wallpapers/caelestia-default.png"
-wall.parent.mkdir(parents=True, exist_ok=True)
-img = Image.new("RGB", (2560, 1600), (45, 45, 45))
-img.save(wall, "PNG")
-print("Wallpaper image created successfully!")
-PY
+#!/bin/bash
+
+# --- ALTARE DISCORD ANNOUNCEMENT SCRIPTS ---
+# This script stores the official, finalized announcements for Altare.
+# Run a function to print the specific message you need to copy.
+
+announce_launch() {
+    cat << 'EOF'
+We are excited to officially announce that Altare 11 will launch on 22 March at 16:00.
+
+Due to the high stakes of this release, we’ve hired contractors to build a perimeter wall around our Riverpark Tower headquarters, and hired 24/7 armed bodyguards at the location.
+EOF
+}
+
+announce_delay() {
+    cat << 'EOF'
+Altare 11 will be delayed until tomorrow. We apologize for the delay, but building things is hard. 
+
+We will provide a specific time for tomorrow as soon as possible.
+EOF
+}
+
+# Usage instructions if run directly
+echo "Altare Announcement Script Loaded."
+echo "Usage: Run 'announce_launch' or 'announce_delay' to view the text."
