@@ -1,162 +1,13 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-TARGET_HOSTNAME="archmac"
-TARGET_USERNAME="lirn"
-TARGET_TIMEZONE="Africa/Cairo"
-TARGET_LOCALE="en_US.UTF-8"
-
-echo "==> Updating keyring and refreshing network mirrors..."
-pacman -Sy archlinux-keyring --noconfirm
-reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-
-echo "==> Resuming system package installation (pacstrap)..."
-pacstrap -K /mnt \
-  base linux linux-firmware intel-ucode \
-  networkmanager iwd sudo vim git base-devel \
-  linux-headers broadcom-wl grub efibootmgr fish \
-  greetd bluez bluez-utils \
-  pipewire pipewire-pulse wireplumber pavucontrol alsa-utils \
-  thermald power-profiles-daemon \
-  gnome-keyring polkit-gnome gammastep geoclue \
-  mesa vulkan-intel xdg-user-dirs xorg-xwayland \
-  python python-pillow brightnessctl \
-  libinput xf86-input-libinput wl-clipboard
-
-echo "==> Generating filesystem table..."
-genfstab -U /mnt >> /mnt/etc/fstab
-
-echo "==> Entering chroot environment to configure the system..."
-arch-chroot /mnt /bin/bash << EOF
-set -euo pipefail
-
-ln -sf /usr/share/zoneinfo/$TARGET_TIMEZONE /etc/localtime
-hwclock --systohc
-sed -i "s/^#$TARGET_LOCALE UTF-8/$TARGET_LOCALE UTF-8/" /etc/locale.gen
-locale-gen
-echo "LANG=$TARGET_LOCALE" > /etc/locale.conf
-echo "$TARGET_HOSTNAME" > /etc/hostname
-cat > /etc/hosts << HOSTS
-127.0.0.1 localhost
-::1 localhost
-127.0.1.1 $TARGET_HOSTNAME.localdomain $TARGET_HOSTNAME
-HOSTS
-
-useradd -m -G wheel,video,input -s /usr/bin/fish $TARGET_USERNAME 2>/dev/null || true
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-echo "$TARGET_USERNAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-installer
-chmod 440 /etc/sudoers.d/99-installer
-
-mkdir -p /etc/modprobe.d
-cat > /etc/modprobe.d/hid_apple.conf << APPLE
-options hid_apple fnmode=1
-options hid_apple iso_layout=0
-options hid_apple swap_opt_cmd=0
-APPLE
-
-mkdir -p /etc/tmpfiles.d
-echo "w /sys/class/leds/smc::kbd_backlight/brightness - - - - 100" > /etc/tmpfiles.d/kbd-backlight.conf
-
-mkdir -p /etc/X11/xorg.conf.d
-cat > /etc/X11/xorg.conf.d/30-touchpad.conf << TRACKPAD
-Section "InputClass"
-    Identifier "touchpad"
-    Driver "libinput"
-    MatchIsTouchpad "on"
-    Option "Tapping" "on"
-    Option "TappingDrag" "on"
-    Option "TappingDragLock" "on"
-    Option "NaturalScrolling" "true"
-    Option "ScrollMethod" "twofinger"
-    Option "ClickMethod" "clickfinger"
-    Option "DisableWhileTyping" "true"
-EndSection
-TRACKPAD
-
-mkinitcpio -P
-
-mkdir -p /etc/greetd
-cat > /etc/greetd/config.toml << GREETD
-[terminal]
-vt = 1
-[default_session]
-command = "tuigreet --time --remember --cmd Hyprland"
-user = "greeter"
-GREETD
-
-grub-install --target=x86_64-efi --efi-directory=/efi --boot-directory=/boot --removable
-grub-mkconfig -o /boot/grub/grub.cfg
-
-systemctl enable NetworkManager bluetooth thermald power-profiles-daemon greetd
-
-mkdir -p /etc/modules-load.d
-printf 'applesmc\ncoretemp\n' > /etc/modules-load.d/macbook-thermal.conf
-cat > /etc/mbpfan.conf << MBPFAN
-[general]
-low_temp = 63
-high_temp = 66
-max_temp = 86
-polling_interval = 1
-MBPFAN
-
-cat > /home/$TARGET_USERNAME/setup.sh << 'SETUP'
-#!/usr/bin/env bash
-set -euo pipefail
-
-info() { printf "\n\e[1;34m==> %s\e[0m\n" "\$*"; }
-
-info "Connecting WiFi"
-nmcli dev wifi connect "0" password "salahbedairr" 2>/dev/null || \
-nmcli dev wifi connect "arti" password "alta1234" 2>/dev/null || true
-sleep 3
-
-info "Installing yay"
-if ! command -v yay &>/dev/null; then
-  tmpdir=\$(mktemp -d)
-  git clone https://aur.archlinux.org/yay.git "\$tmpdir/yay"
-  cd "\$tmpdir/yay"
-  makepkg -si --noconfirm
-  cd ~
-fi
-
-info "Installing tuigreet and mbpfan"
-yay -S --needed --noconfirm --answerclean None --answerdiff None --answeredit None \
-  tuigreet mbpfan
-
-info "Installing caelestia"
-yay -S --needed --noconfirm --answerclean None --answerdiff None --answeredit None \
-  caelestia-shell caelestia-cli
-
-info "Installing chrome"
-yay -S --needed --noconfirm --answerclean None --answerdiff None --answeredit None \
-  google-chrome
-
-info "Cloning caelestia dotfiles"
-rm -rf ~/.local/share/caelestia
-git clone --depth 1 https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
-
-info "Linking configs"
-repo=~/.local/share/caelestia
-cfg=~/.config
-mkdir -p "\$cfg"
-rm -rf "\$cfg/hypr" "\$cfg/foot" "\$cfg/fish" "\$cfg/fastfetch" "\$cfg/uwsm" "\$cfg/btop"
-rm -f "\$cfg/starship.toml"
-ln -s "\$repo/hypr" "\$cfg/hypr"
-ln -s "\$repo/foot" "\$cfg/foot"
-ln -s "\$repo/fish" "\$cfg/fish"
-ln -s "\$repo/fastfetch" "\$cfg/fastfetch"
-ln -s "\$repo/uwsm" "\$cfg/uwsm"
-ln -s "\$repo/btop" "\$cfg/btop"
-ln -s "\$repo/starship.toml" "\$cfg/starship.toml"
-chmod u+x "\$cfg/hypr/scripts/wsaction.fish"
-
-info "Writing macOS-like config"
+# 1. Create directories
 mkdir -p ~/.config/caelestia ~/Pictures/Wallpapers
-cat > ~/.config/caelestia/hypr-vars.conf << HYPRVARS
-\$workspaceSwipeFingers = 3
+
+# 2. Write the vars configuration file
+cat > ~/.config/caelestia/hypr-vars.conf << 'HYPRVARS'
+$workspaceSwipeFingers = 3
 HYPRVARS
 
-cat > ~/.config/caelestia/hypr-user.conf << HYPRUSER
+# 3. Write the user configuration file
+cat > ~/.config/caelestia/hypr-user.conf << 'HYPRUSER'
 monitor=eDP-1,highres,auto,2
 
 input {
@@ -188,18 +39,18 @@ misc {
     disable_hyprland_logo = true
 }
 
-\$mod = SUPER
+$mod = SUPER
 
-bind=\$mod,Q,killactive
-bind=\$mod,F,fullscreen,0
-bind=\$mod,M,fullscreen,1
-bind=\$mod,Tab,cyclenext
-bind=\$mod SHIFT,Tab,cyclenext,prev
-bind=\$mod,Left,workspace,e-1
-bind=\$mod,Right,workspace,e+1
-bind=\$mod,Up,overview:toggle
-bind=\$mod,Space,exec,rofi -show drun
-bind=\$mod,Return,exec,foot
+bind=$mod,Q,killactive
+bind=$mod,F,fullscreen,0
+bind=$mod,M,fullscreen,1
+bind=$mod,Tab,cyclenext
+bind=$mod SHIFT,Tab,cyclenext,prev
+bind=$mod,Left,workspace,e-1
+bind=$mod,Right,workspace,e+1
+bind=$mod,Up,overview:toggle
+bind=$mod,Space,exec,rofi -show drun
+bind=$mod,Return,exec,foot
 bind=,XF86MonBrightnessUp,exec,brightnessctl set +10%
 bind=,XF86MonBrightnessDown,exec,brightnessctl set 10%-
 bind=,XF86KbdBrightnessUp,exec,brightnessctl -d smc::kbd_backlight set +10%
@@ -209,63 +60,12 @@ bind=,XF86AudioLowerVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bind=,XF86AudioMute,exec,wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 HYPRUSER
 
-info "Generating wallpaper"
-python - << PY
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
-wall = Path.home() / "Pictures/Wallpapers/caelestia-default.png"
-wall.parent.mkdir(parents=True, exist_ok=True)
-w,h=2560,1600
-img=Image.new("RGB",(w,h))
-pix=img.load()
-top,bottom=(255,248,246),(241,223,218)
-for y in range(h):
-    t=y/(h-1)
-    for x in range(w): pix[x,y]=(int(top[0]*(1-t)+bottom[0]*t),int(top[1]*(1-t)+bottom[1]*t),int(top[2]*(1-t)+bottom[2]*t))
-ov=Image.new("RGBA",(w,h),(0,0,0,0))
-d=ImageDraw.Draw(ov)
-d.ellipse((-220,1050,1100,2400),fill=(143,75,58,46))
-d.ellipse((1450,-250,3000,1300),fill=(121,89,12,36))
-d.rounded_rectangle((520,210,2050,1150),radius=120,fill=(255,255,255,34))
-d.arc((760,470,1800,1510),start=200,end=332,fill=(119,87,79,150),width=8)
-ov=ov.filter(ImageFilter.GaussianBlur(6))
-img=Image.alpha_composite(img.convert("RGBA"),ov)
-img.save(wall,"PNG")
-PY
-
+# 4. Finish theme configuration and services
 caelestia scheme set -n shadotheme || true
-caelestia wallpaper -f ~/Pictures/Wallpapers/caelestia-default.png || true
 caelestia scheme set -n dynamic || true
 xdg-user-dirs-update || true
-
-info "Enabling fan control"
 sudo systemctl enable --now mbpfan
-
-info "Setting keyboard backlight"
 sudo brightnessctl -d smc::kbd_backlight set 50% || true
 
-info "All done! Run: Hyprland"
-SETUP
-
-chown $TARGET_USERNAME:$TARGET_USERNAME /home/$TARGET_USERNAME/setup.sh
-chmod +x /home/$TARGET_USERNAME/setup.sh
-
-echo "Set root password:"
-passwd
-echo "Set $TARGET_USERNAME password:"
-passwd $TARGET_USERNAME
-
-rm -f /etc/sudoers.d/99-installer
-EOF
-
-umount -R /mnt
-
-echo ""
-echo "=============================="
-echo " Done! Reboot -> hold Option"
-echo " Choose EFI Boot"
-echo " Login as $TARGET_USERNAME"
-echo " Run: bash ~/setup.sh"
-echo "=============================="
-read -rp "Reboot now? [y/N]: " r
-[[ "$r" =~ ^[Yy]$ ]] && reboot
+# 5. Boot into your new graphical desktop!
+sudo systemctl restart greetd
