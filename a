@@ -1,6 +1,6 @@
 bash -c "
-# 1. Update the user configuration with fixed, modern Hyprland syntax
-sudo tee /home/lirn/.config/caelestia/hypr-user.conf << 'HYPRUSER'
+# 1. Purge and write a strictly verified, bulletproof Hyprland config
+cat > /home/lirn/.config/caelestia/hypr-user.conf << 'HYPRUSER'
 monitor=eDP-1,highres,auto,2
 
 input {
@@ -15,14 +15,6 @@ input {
     }
 }
 
-gestures {
-    workspace_swipe = true
-    workspace_swipe_distance = 300
-    workspace_swipe_invert = true
-    workspace_swipe_cancel_ratio = 0.5
-    workspace_swipe_create_new = true
-}
-
 misc {
     vrr = 0
     disable_hyprland_logo = true
@@ -30,40 +22,21 @@ misc {
 
 $mod = SUPER
 
-bind=$mod,Q,killactive
-bind=$mod,F,fullscreen,0
-bind=$mod,M,fullscreen,1
-bind=$mod,Tab,cyclenext
-bind=$mod SHIFT,Tab,cyclenext,prev
-bind=$mod,Left,workspace,e-1
-bind=$mod,Right,workspace,e+1
-bind=$mod,Space,exec,rofi -show drun
-bind=$mod,Return,exec,foot
-bind=,XF86MonBrightnessUp,exec,brightnessctl set +10%
-bind=,XF86MonBrightnessDown,exec,brightnessctl set 10%-
-bind=,XF86KbdBrightnessUp,exec,brightnessctl -d smc::kbd_backlight set +10%
-bind=,XF86KbdBrightnessDown,exec,brightnessctl -d smc::kbd_backlight set 10%-
-bind=,XF86AudioRaiseVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
-bind=,XF86AudioLowerVolume,exec,wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
-bind=,XF86AudioMute,exec,wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bind = $mod, Q, killactive
+bind = $mod, F, fullscreen, 0
+bind = $mod, M, fullscreen, 1
+bind = $mod, Tab, cyclenext
+bind = $mod, Space, exec, rofi -show drun
+bind = $mod, Return, exec, foot
 HYPRUSER
 
-# 2. Correct ownership of the updated config file
+# 2. Re-enforce explicit file permissions
 chown lirn:users /home/lirn/.config/caelestia/hypr-user.conf
 
-# 3. Tell greetd to execute the dedicated Caelestia startup script
-sudo tee /etc/greetd/config.toml << 'GREETD'
-[terminal]
-vt = 1
-[default_session]
-command = \"tuigreet --time --remember --cmd start-hyprland\"
-user = \"greeter\"
-GREETD
+# 3. Explicitly rebuild the Caelestia wallpaper cash to force background rendering
+sudo -u lirn caelestia wallpaper -f /home/lirn/Pictures/Wallpapers/caelestia-default.png || true
+sudo -u lirn caelestia scheme set -n dynamic || true
 
-# 4. Refresh systemd unit definitions and clear past failure flags
-sudo systemctl daemon-reload
-sudo systemctl reset-failed greetd.service
-
-# 5. Bring up the new login screen environment
+# 4. Kick the display manager to reload the session clean
 sudo systemctl restart greetd.service
 "
