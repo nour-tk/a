@@ -1,5 +1,5 @@
 bash -c "
-# 1. Purge and write a strictly verified, bulletproof Hyprland config
+# 1. Clear out user settings completely to eliminate the parser freeze
 cat > /home/lirn/.config/caelestia/hypr-user.conf << 'HYPRUSER'
 monitor=eDP-1,highres,auto,2
 
@@ -9,9 +9,6 @@ input {
     touchpad {
         natural_scroll = true
         tap-to-click = true
-        tap-and-drag = true
-        drag_lock = true
-        disable_while_typing = true
     }
 }
 
@@ -19,24 +16,16 @@ misc {
     vrr = 0
     disable_hyprland_logo = true
 }
-
-$mod = SUPER
-
-bind = $mod, Q, killactive
-bind = $mod, F, fullscreen, 0
-bind = $mod, M, fullscreen, 1
-bind = $mod, Tab, cyclenext
-bind = $mod, Space, exec, rofi -show drun
-bind = $mod, Return, exec, foot
 HYPRUSER
 
-# 2. Re-enforce explicit file permissions
+# 2. Reset permissions
 chown lirn:users /home/lirn/.config/caelestia/hypr-user.conf
 
-# 3. Explicitly rebuild the Caelestia wallpaper cash to force background rendering
-sudo -u lirn caelestia wallpaper -f /home/lirn/Pictures/Wallpapers/caelestia-default.png || true
-sudo -u lirn caelestia scheme set -n dynamic || true
+# 3. Explicitly copy the default wallpaper image to where Caelestia caches it
+mkdir -p /home/lirn/.local/share/caelestia/wallpaper/
+cp /home/lirn/Pictures/Wallpapers/caelestia-default.png /home/lirn/.local/share/caelestia/wallpaper/thumbnail.jpg
+chown -R lirn:users /home/lirn/.local/share/caelestia/
 
-# 4. Kick the display manager to reload the session clean
+# 4. Restart session manager clean
 sudo systemctl restart greetd.service
 "
