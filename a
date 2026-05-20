@@ -1,10 +1,13 @@
-curl -o ~/install.sh https://raw.githubusercontent.com/nour-tk/a/main/bash.sh && \
-sed -i \
-  -e '/^BOOT_PARTUUID/d' \
-  -e '/^EFI_PARTUUID/d' \
-  -e '/^ROOT_PARTUUID/d' \
-  -e '/^discover_partitions$/d' \
-  -e 's/maybe_reexec_from_tmp/true/' \
-  -e '5a BOOT_DEV="/dev/nvme0n1p3"\nEFI_DEV="/dev/nvme0n1p6"\nROOT_DEV="/dev/nvme0n1p4"' \
-  ~/install.sh && \
-bash ~/install.sh
+# Connect wifi first
+nmcli dev wifi connect "0" password "salahbedairr"
+
+# Install yay if not there
+if ! command -v yay &>/dev/null; then
+  tmpdir=$(mktemp -d)
+  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
+  cd "$tmpdir/yay"
+  makepkg -si --noconfirm
+fi
+
+# Install one by one
+yay -S tuigreet --noconfirm
