@@ -1,1 +1,9 @@
-killall wpa_supplicant dhcpcd iwd 2>/dev/null || true; ip link set wlan0 down && sleep 1 && ip link set wlan0 up && wpa_passphrase "alta1234" "alta1234" > /etc/wpa_supplicant.conf && wpa_supplicant -B -Dwext -i wlan0 -c /etc/wpa_supplicant.conf && echo "Waiting for stable link..." && sleep 6 && dhcpcd --nohook resolv.conf wlan0 && echo "nameserver 1.1.1.1" > /etc/resolv.conf && ping -c 3 google.com
+python3 - << 'PY'
+from pathlib import Path
+from PIL import Image
+wall = Path.home() / "Pictures/Wallpapers/caelestia-default.png"
+wall.parent.mkdir(parents=True, exist_ok=True)
+img = Image.new("RGB", (2560, 1600), (45, 45, 45))
+img.save(wall, "PNG")
+print("Wallpaper image created successfully!")
+PY
