@@ -1,13 +1,15 @@
-# Connect wifi first
-nmcli dev wifi connect "0" password "salahbedairr"
+umount -R /mnt 2>/dev/null || true
+mount /dev/nvme0n1p4 /mnt
+mount /dev/nvme0n1p3 /mnt/boot
+mount /dev/nvme0n1p6 /mnt/efi
 
-# Install yay if not there
-if ! command -v yay &>/dev/null; then
-  tmpdir=$(mktemp -d)
-  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
-  cd "$tmpdir/yay"
-  makepkg -si --noconfirm
-fi
+arch-chroot /mnt /bin/bash << 'EOF'
+# Create user properly
+useradd -m -G wheel,video,input -s /usr/bin/fish lirn 2>/dev/null || true
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+echo "lirn ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-installer
+chmod 440 /etc/sudoers.d/99-installer
 
-# Install one by one
-yay -S tuigreet --noconfirm
+# Set password
+passwd lirn
+EOF
