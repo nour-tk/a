@@ -1,4 +1,4 @@
-modprobe wl && sleep 3 && iwctl --passphrase "salahbedairr" station wlan0 connect "0" && sleep 3 && cat > ~/install.sh << 'INSTALL'
+cat > ~/install.sh << 'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -13,10 +13,36 @@ TARGET_LOCALE="en_US.UTF-8"
 info() { printf "\n\e[1;34m==> %s\e[0m\n" "$*"; }
 die()  { printf "\nError: %s\n" "$*" >&2; exit 1; }
 
-ping -c 1 archlinux.org >/dev/null 2>&1 || die "No internet"
+info "Loading Broadcom WiFi driver"
+modprobe -r b43 ssb wl 2>/dev/null || true
+modprobe wl 2>/dev/null || modprobe b43 2>/dev/null || true
+sleep 3
+
+info "Finding WiFi device"
+WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
+if [[ -z "$WIFI_DEV" ]]; then
+  echo "No WiFi device found, trying rfkill unblock"
+  rfkill unblock all
+  sleep 2
+  WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
+fi
+echo "WiFi device: ${WIFI_DEV:-none}"
+
+info "Connecting to WiFi"
+if [[ -n "${WIFI_DEV:-}" ]]; then
+  ip link set "$WIFI_DEV" up 2>/dev/null || true
+  iwctl --passphrase "salahbedairr" station "$WIFI_DEV" connect "0" 2>/dev/null || \
+  iwctl --passphrase "alta1234" station "$WIFI_DEV" connect "arti" 2>/dev/null || true
+  sleep 5
+fi
+
+ping -c 1 archlinux.org >/dev/null 2>&1 || die "No internet - connect manually then rerun"
 echo "Online!"
 
 timedatectl set-ntp true
+
+info "Unmounting any existing mounts"
+umount -R /mnt 2>/dev/null || true
 
 info "Formatting"
 mkfs.fat -F32 "$BOOT_DEV"
@@ -73,9 +99,7 @@ options hid_apple swap_opt_cmd=0
 APPLE
 
 mkdir -p /etc/tmpfiles.d
-cat > /etc/tmpfiles.d/kbd-backlight.conf << KBD
-w /sys/class/leds/smc::kbd_backlight/brightness - - - - 100
-KBD
+echo "w /sys/class/leds/smc::kbd_backlight/brightness - - - - 100" > /etc/tmpfiles.d/kbd-backlight.conf
 
 mkdir -p /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/30-touchpad.conf << TRACKPAD
@@ -126,7 +150,8 @@ set -euo pipefail
 info() { printf "\n\e[1;34m==> %s\e[0m\n" "$*"; }
 
 info "Connecting WiFi"
-nmcli dev wifi connect "0" password "salahbedairr" || true
+nmcli dev wifi connect "0" password "salahbedairr" 2>/dev/null || \
+nmcli dev wifi connect "arti" password "alta1234" 2>/dev/null || true
 sleep 3
 
 info "Installing yay"
