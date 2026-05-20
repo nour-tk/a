@@ -15,33 +15,32 @@ die()  { printf "\nError: %s\n" "$*" >&2; exit 1; }
 
 info "Loading Broadcom WiFi driver"
 modprobe -r b43 ssb wl 2>/dev/null || true
-modprobe wl 2>/dev/null || modprobe b43 2>/dev/null || true
-sleep 3
+modprobe wl 2>/dev/null || true
+sleep 2
+rfkill unblock all 2>/dev/null || true
+sleep 1
 
-info "Finding WiFi device"
+info "Bringing up WiFi"
 WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
-if [[ -z "$WIFI_DEV" ]]; then
-  echo "No WiFi device found, trying rfkill unblock"
-  rfkill unblock all
-  sleep 2
-  WIFI_DEV=$(ip link | awk -F': ' '/^[0-9]+: w/{print $2; exit}')
-fi
 echo "WiFi device: ${WIFI_DEV:-none}"
-
-info "Connecting to WiFi"
 if [[ -n "${WIFI_DEV:-}" ]]; then
   ip link set "$WIFI_DEV" up 2>/dev/null || true
-  iwctl --passphrase "salahbedairr" station "$WIFI_DEV" connect "0" 2>/dev/null || \
-  iwctl --passphrase "alta1234" station "$WIFI_DEV" connect "arti" 2>/dev/null || true
-  sleep 5
+  wpa_supplicant -B -i "$WIFI_DEV" -c <(wpa_passphrase "0" "salahbedairr") 2>/dev/null || \
+  wpa_supplicant -B -i "$WIFI_DEV" -c <(wpa_passphrase "arti" "alta1234") 2>/dev/null || true
+  sleep 4
+  dhcpcd "$WIFI_DEV" 2>/dev/null || dhclient "$WIFI_DEV" 2>/dev/null || true
+  sleep 3
 fi
 
 ping -c 1 archlinux.org >/dev/null 2>&1 || die "No internet - connect manually then rerun"
 echo "Online!"
 
+info "Refreshing mirrors"
+reflector --latest 10 --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null || true
+
 timedatectl set-ntp true
 
-info "Unmounting any existing mounts"
+info "Unmounting"
 umount -R /mnt 2>/dev/null || true
 
 info "Formatting"
